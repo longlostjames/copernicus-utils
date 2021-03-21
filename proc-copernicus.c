@@ -17,6 +17,7 @@
 // 20081023 : JCN : added ability to change range offset
 // 20101004 : JCN : reduce UNCODED_FIRST_GOOD from 37 to 1 (investigate leakage)
 // 20110727 : JCN : include ZDR processing
+// 20210321 : CJW : revision of metadata
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -536,10 +537,35 @@ int main(int argc, char *argv[])
   // Add new global attributes
   printf("Adding global attributes...\n");
   add_text_global(ncid_out, "Conventions", "CF-1.0");
-  add_text_global(ncid_out, "comment", "Data restrictions: For academic research use only");
-  add_text_global(ncid_out, "references", "Documentation may be found at: http://www.badc.nerc.ac.uk/data/chilbolton\nFor additional information please contact: chilbolton-netcdf@listserv.rl.ac.uk");
-  add_text_global(ncid_out, "institution", "Original data recorded at Chilbolton Observatory, part of the Radio Communications Research Unit, CCLRC, UK: http://www.rcru.rl.ac.uk/chilbolton\nInstrument owned by the Department of Meteorology, University of Reading, UK: http://www.met.rdg.ac.uk/radar \nData recorded on behalf of the Universities Facility for Atmospheric Measurements (UFAM): http://www.env.leeds.ac.uk/ufam \nData held at the British Atmospheric Data Centre (BADC): http://www.badc.nerc.ac.uk");
-  add_text_global(ncid_out, "title", "UFAM/Chilbolton 35-GHz Cloud Radar (Copernicus)"); 
+  add_text_global(ncid_out, "source", "NCAS Ka-band Radar unit 1 (Copernicus)");
+  add_text_global(ncid_out, "instrument_manufacturer", "Rutherford Appleton Laboratory");
+  add_text_global(ncid_out, "instrument_model", "");
+  add_text_global(ncid_out, "instrument_serial_number", "");
+  add_text_global(ncid_out, "instrument_software", "");
+  add_text_global(ncid_out, "instrument_software_version", "");
+  add_text_global(ncid_out, "creator_name", "Chris Walden");
+  add_text_global(ncid_out, "creator_email", "chris.walden@ncas.ac.uk");
+  add_text_global(ncid_out, "creator_url", "https://orcid.org/0000-0002-5718-466X");
+  add_text_global(ncid_out, "processing_software_url", "");
+  add_text_global(ncid_out, "processing_software_version", "");
+  add_text_global(ncid_out, "product_version", "v0.1");
+  add_text_global(ncid_out, "processing_level", "1");
+  add_text_global(ncid_out, "last_revised_date", "");
+  add_text_global(ncid_out, "project", "NCAS long-term measurement programme");
+  add_text_global(ncid_out, "project_principal_investigator", "Chris Walden");
+  add_text_global(ncid_out, "project_principal_investigator_email", "chris.walden@ncas.ac.uk");
+  add_text_global(ncid_out, "project_principal_investigator_url", "https://orcid.org/0000-0002-5718-466X");
+  add_text_global(ncid_out, "licence", "Data usage licence - UK Government Open Licence Agreement: http://www.nationalarchives.gov.uk/doc/open-government-licence");
+  add_text_global(ncid_out, "acknowledgement", "Acknowledgement of NCAS as the data provider is required whenever and wherever these data are used");
+  add_text_global(ncid_out, "platform", "Chilbolton Atmospheric Observatory");
+  add_text_global(ncid_out, "platform_type", "stationary_platform");
+  add_text_global(ncid_out, "deployment_type", "land");
+  
+  add_text_global(ncid_out, "comment", "");
+  add_text_global(ncid_out, "references", "");
+  add_text_global(ncid_out, "title", "NCAS Chilbolton 35-GHz Cloud Radar (Copernicus)"); 
+  add_text_global(ncid_out, "featureType", "timeSeriesProfile");
+  
 
   // Update history attribute
   printf("Updating history...\n");
