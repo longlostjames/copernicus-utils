@@ -1,11 +1,11 @@
-#define VERSION_NUMBER 1.6
+#define VERSION_NUMBER 1.50
 
 // proc-copernicus.c
 // -------------------------------------------------------------------
 // Converts Chilbolton Raw NetCDF into CF-compliant Processed format.
 // Applies Z calibration if specified.
 //
-// Version 1.6
+// Version 1.5
 //
 // 22-10-2004 : EGP : Adapted from proc-acrobat
 // 28-11-2006 : JCN : Include merging of coded and uncoded modes (no LDR)
@@ -16,8 +16,9 @@
 //                  adapted CODED_FIRST_GOOD from 46 to 47    
 // 20081023 : JCN : added ability to change range offset
 // 20101004 : JCN : reduce UNCODED_FIRST_GOOD from 37 to 1 (investigate leakage)
-// 20110727 : JCN : include ZDR processing
-// 20210321 : CJW : revision of metadata
+// 20110715 : JCN : comment out ZDR processing
+// 20110722 : JCN : exclude LDR
+// 20140323 : JCN : modified process_data to exclude noise spikes
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -90,7 +91,7 @@ void despeckle(float *data, int nx, int ny)
 int process_data(int ncid_in, int ncid_out, size_t range_length, size_t time_length, const char *varname, float offset, int first_good, int end_bad, char *snr_var, float snr_thresh, float *corr)
 {
    float *data, *SNRdata;
-   int i,j;
+   int i,j,count;
    int temp_id,snr_id;
    int status;
    
@@ -115,22 +116,32 @@ int process_data(int ncid_in, int ncid_out, size_t range_length, size_t time_len
    // Loop through rays
    for(i=0; i<time_length; i++)
      {
+        count=0;
 	// Add cal offset
 	for(j=0; j<range_length; j++){
 	  data[j+i*range_length] += (offset + corr[j]);
-          if(SNRdata[j+i*range_length] < snr_thresh)
+          if(SNRdata[j+i*range_length] < snr_thresh) {
             data[j+i*range_length] = MISSING_VALUE;
+            count++;
+          } 
         }
 	
-	// Mask off missing data
-	for(j=0; j<first_good; j++)
+        if (count < 5)
+          {
+            for (j=0; j<range_length; j++)
+              data[j+i*range_length] = MISSING_VALUE;
+          } 
+        else
+          { 
+        	// Mask off missing data
+  	for(j=0; j<first_good; j++)
 	  data[j+i*range_length] = MISSING_VALUE;
 	if(end_bad>0)
 	  {
 	     for(j=range_length-end_bad; j<range_length; j++)
 	       data[j+i*range_length] = MISSING_VALUE;
 	  }
-	
+	}
      }
    
    despeckle(data, (int)time_length, (int)range_length);
@@ -341,7 +352,7 @@ for (i=0;i<time_length;i++)
           endind=tmp_int+i*range_length;
           maxval=MISSING_VALUE;
           for (k=stind;k<endind;k++) {
-             if ( maxval<SNR_data[k]) maxval=SNR_data[k];
+           if ( maxval<SNR_data[k]) maxval=SNR_data[k];
           }
           if ((maxval+SNR_noise_diff-diff_thresh > SNR_data[j+i*range_length]) & (SNR_data_coded[j+i*range_length] < 6.0)) mask[j+i*range_length]=0.0;
         } 
@@ -431,7 +442,6 @@ int main(int argc, char *argv[])
   struct tm *ptr;
   time_t lt;  
   float new_ZED_HC_cal, new_ZED_HCP_cal;
-  float zdr_cal_offset;
   float new_range_offset;
   struct stat file_info;
 
@@ -537,35 +547,10 @@ int main(int argc, char *argv[])
   // Add new global attributes
   printf("Adding global attributes...\n");
   add_text_global(ncid_out, "Conventions", "CF-1.0");
-  add_text_global(ncid_out, "source", "NCAS Ka-band Radar unit 1 (Copernicus)");
-  add_text_global(ncid_out, "instrument_manufacturer", "Rutherford Appleton Laboratory");
-  add_text_global(ncid_out, "instrument_model", "");
-  add_text_global(ncid_out, "instrument_serial_number", "");
-  add_text_global(ncid_out, "instrument_software", "");
-  add_text_global(ncid_out, "instrument_software_version", "");
-  add_text_global(ncid_out, "creator_name", "Chris Walden");
-  add_text_global(ncid_out, "creator_email", "chris.walden@ncas.ac.uk");
-  add_text_global(ncid_out, "creator_url", "https://orcid.org/0000-0002-5718-466X");
-  add_text_global(ncid_out, "processing_software_url", "");
-  add_text_global(ncid_out, "processing_software_version", "");
-  add_text_global(ncid_out, "product_version", "v0.1");
-  add_text_global(ncid_out, "processing_level", "1");
-  add_text_global(ncid_out, "last_revised_date", "");
-  add_text_global(ncid_out, "project", "NCAS long-term measurement programme");
-  add_text_global(ncid_out, "project_principal_investigator", "Chris Walden");
-  add_text_global(ncid_out, "project_principal_investigator_email", "chris.walden@ncas.ac.uk");
-  add_text_global(ncid_out, "project_principal_investigator_url", "https://orcid.org/0000-0002-5718-466X");
-  add_text_global(ncid_out, "licence", "Data usage licence - UK Government Open Licence Agreement: http://www.nationalarchives.gov.uk/doc/open-government-licence");
-  add_text_global(ncid_out, "acknowledgement", "Acknowledgement of NCAS as the data provider is required whenever and wherever these data are used");
-  add_text_global(ncid_out, "platform", "Chilbolton Atmospheric Observatory");
-  add_text_global(ncid_out, "platform_type", "stationary_platform");
-  add_text_global(ncid_out, "deployment_type", "land");
-  
-  add_text_global(ncid_out, "comment", "");
-  add_text_global(ncid_out, "references", "");
-  add_text_global(ncid_out, "title", "NCAS Chilbolton 35-GHz Cloud Radar (Copernicus)"); 
-  add_text_global(ncid_out, "featureType", "timeSeriesProfile");
-  
+  add_text_global(ncid_out, "comment", "Data restrictions: For academic research use only");
+  add_text_global(ncid_out, "references", "Documentation may be found at: http://www.badc.nerc.ac.uk/data/chilbolton\nFor additional information please contact: chilbolton-netcdf@listserv.rl.ac.uk");
+  add_text_global(ncid_out, "institution", "Original data recorded at Chilbolton Observatory, part of the Radio Communications Research Unit, CCLRC, UK: http://www.rcru.rl.ac.uk/chilbolton\nInstrument owned by the Department of Meteorology, University of Reading, UK: http://www.met.rdg.ac.uk/radar \nData recorded on behalf of the Universities Facility for Atmospheric Measurements (UFAM): http://www.env.leeds.ac.uk/ufam \nData held at the British Atmospheric Data Centre (BADC): http://www.badc.nerc.ac.uk");
+  add_text_global(ncid_out, "title", "UFAM/Chilbolton 35-GHz Cloud Radar (Copernicus)"); 
 
   // Update history attribute
   printf("Updating history...\n");
@@ -655,18 +640,6 @@ int main(int argc, char *argv[])
     if (status != NC_NOERR) handle_error(status);
   }
 
-  //Add ZDR calibration offset
-  zdr_cal_offset=-3.0;
-  status = nc_inq_varid(ncid_out,"ZDR_C",&temp_id);
-  if (status != NC_NOERR) handle_error(status);
-  status = nc_put_att_float(ncid_out,temp_id,"applied_calibration_offset", NC_FLOAT, 1, &zdr_cal_offset );
-  if(status != NC_NOERR) handle_error(status);
-  status = nc_inq_varid(ncid_out,"ZDR_CP",&temp_id);
-  if (status != NC_NOERR) handle_error(status);
-  status = nc_put_att_float(ncid_out,temp_id,"applied_calibration_offset", NC_FLOAT, 1, &zdr_cal_offset );
-  if(status != NC_NOERR) handle_error(status);
-  
-
   // Copy observable definitions
   copy_var_def(ncid_in, ncid_out, "ZED_HC");
   copy_var_def(ncid_in, ncid_out, "VEL_HC");
@@ -676,18 +649,17 @@ int main(int argc, char *argv[])
   copy_var_def(ncid_in, ncid_out, "VEL_HCP");
   copy_var_def(ncid_in, ncid_out, "SPW_HCP");
   copy_var_def(ncid_in, ncid_out, "VEL_HCDP");
-  copy_var_def(ncid_in, ncid_out, "LDR_HC");
-  copy_var_def(ncid_in, ncid_out, "LDR_HCP");
-  copy_var_def(ncid_in, ncid_out, "ZDR_C");
-  copy_var_def(ncid_in, ncid_out, "ZDR_CP");
+//  copy_var_def(ncid_in, ncid_out, "LDR_HC");
+//  copy_var_def(ncid_in, ncid_out, "LDR_HCP");
+//  copy_var_def(ncid_in, ncid_out, "ZDR_C");
+//  copy_var_def(ncid_in, ncid_out, "ZDR_CP");
 
   // Create merged observable definitions
   copy_var_def_rename(ncid_in, ncid_out, "ZED_HC", "ZED_HCM",1);
   copy_var_def_rename(ncid_in, ncid_out, "VEL_HC", "VEL_HCM",1);
   copy_var_def_rename(ncid_in, ncid_out, "SPW_HC", "SPW_HCM",1);
   copy_var_def_rename(ncid_in, ncid_out, "VEL_HCD", "VEL_HCDM",1);
-  copy_var_def_rename(ncid_in, ncid_out, "LDR_HC", "LDR_HCM",1);
-  copy_var_def_rename(ncid_in, ncid_out, "ZDR_C", "ZDR_CM",1);
+//  copy_var_def_rename(ncid_in, ncid_out, "LDR_HC", "LDR_HCM",1);
   copy_var_def_rename(ncid_in, ncid_out, "ZED_HC", "MASK",0);
 
   // Add attributes to aid in plotting
@@ -719,18 +691,12 @@ int main(int argc, char *argv[])
   add_text_att(ncid_out, "SNR_HC", "units_html", "dB");
   add_text_att(ncid_out, "SNR_HCP", "short_name", "SNR (coded)");
   add_text_att(ncid_out, "SNR_HCP", "units_html", "dB");
-  add_text_att(ncid_out, "LDR_HC", "short_name", "LDR");
-  add_text_att(ncid_out, "LDR_HC", "units_html", "dB");
-  add_text_att(ncid_out, "LDR_HCP", "short_name", "LDR (coded)");
-  add_text_att(ncid_out, "LDR_HCP", "units_html", "dB");
-  add_text_att(ncid_out, "LDR_HCM", "short_name", "LDR (merged)");
-  add_text_att(ncid_out, "LDR_HCM", "units_html", "dB");
-  add_text_att(ncid_out, "ZDR_C", "short_name", "ZDR");
-  add_text_att(ncid_out, "ZDR_C", "units_html", "dB");
-  add_text_att(ncid_out, "ZDR_CP", "short_name", "ZDR (coded)");
-  add_text_att(ncid_out, "ZDR_CP", "units_html", "dB");
-  add_text_att(ncid_out, "ZDR_CM", "short_name", "ZDR (merged)");
-  add_text_att(ncid_out, "ZDR_CM", "units_html", "dB");
+//  add_text_att(ncid_out, "LDR_HC", "short_name", "LDR");
+//  add_text_att(ncid_out, "LDR_HC", "units_html", "dB");
+//  add_text_att(ncid_out, "LDR_HCP", "short_name", "LDR (coded)");
+//  add_text_att(ncid_out, "LDR_HCP", "units_html", "dB");
+//  add_text_att(ncid_out, "LDR_HCM", "short_name", "LDR (merged)");
+//  add_text_att(ncid_out, "LDR_HCM", "units_html", "dB");
 
   // Copy these observables if they exist
   if(nc_inq_varid(ncid_in,"ZED_HCD",&temp_id)==NC_NOERR){
@@ -821,10 +787,10 @@ int main(int argc, char *argv[])
   process_data(ncid_in, ncid_out, range_length, time_length, "VEL_HCDP", 0, CODED_FIRST_GOOD, END_BAD, "SNR_HCP", 0.85, NULL_corr);
   process_data(ncid_in, ncid_out, range_length, time_length, "SPW_HC", 0, UNCODED_FIRST_GOOD, END_BAD, "SNR_HC", 1.25, NULL_corr);
   process_data(ncid_in, ncid_out, range_length, time_length, "SPW_HCP", 0, CODED_FIRST_GOOD, END_BAD, "SNR_HCP", 0.85, NULL_corr);
-  process_data(ncid_in, ncid_out, range_length, time_length, "LDR_HC", 0, UNCODED_FIRST_GOOD, END_BAD, "SNR_HC", 1.25, NULL_corr);
-  process_data(ncid_in, ncid_out, range_length, time_length, "LDR_HCP", 0, CODED_FIRST_GOOD, END_BAD, "SNR_HCP", 0.85, NULL_corr);
-  process_data(ncid_in, ncid_out, range_length, time_length, "ZDR_C", zdr_cal_offset, UNCODED_FIRST_GOOD, END_BAD, "SNR_HC", 1.25, NULL_corr);
-  process_data(ncid_in, ncid_out, range_length, time_length, "ZDR_CP", zdr_cal_offset, CODED_FIRST_GOOD, END_BAD, "SNR_HCP", 0.85, NULL_corr);
+//  process_data(ncid_in, ncid_out, range_length, time_length, "LDR_HC", 0, UNCODED_FIRST_GOOD, END_BAD, "SNR_HC", 1.25, NULL_corr);
+//  process_data(ncid_in, ncid_out, range_length, time_length, "LDR_HCP", 0, CODED_FIRST_GOOD, END_BAD, "SNR_HCP", 0.85, NULL_corr);
+//  process_data(ncid_in, ncid_out, range_length, time_length, "ZDR_C", 0, UNCODED_FIRST_GOOD, END_BAD, "SNR_HC", 1.25, NULL_corr);
+//  process_data(ncid_in, ncid_out, range_length, time_length, "ZDR_CP", 0, CODED_FIRST_GOOD, END_BAD, "SNR_HCP", 0.85, NULL_corr);
   if(nc_inq_varid(ncid_in,"ZED_HCD",&temp_id)==NC_NOERR){
     process_data(ncid_in, ncid_out, range_length, time_length, "ZED_HCD", 0, UNCODED_FIRST_GOOD, END_BAD, "SNR_HC", 1.25, NULL_corr);
   }
@@ -861,10 +827,8 @@ int main(int argc, char *argv[])
   if (status != NC_NOERR) handle_error(status);
   status = apply_mask(ncid_out, range_length, time_length, "ZED_HCDP", "ZED_HCD", "ZED_HCDM", 2.0);
   if (status != NC_NOERR) handle_error(status);
-  status = apply_mask(ncid_out, range_length, time_length, "LDR_HCP", "LDR_HC", "LDR_HCM", 2.0);
-  if (status != NC_NOERR) handle_error(status);
-  status = apply_mask(ncid_out, range_length, time_length, "ZDR_CP", "ZDR_C", "ZDR_CM", 2.0);
-  if (status != NC_NOERR) handle_error(status);
+//  status = apply_mask(ncid_out, range_length, time_length, "LDR_HCP", "LDR_HC", "LDR_HCM", 2.0);
+//  if (status != NC_NOERR) handle_error(status);
 
 
 
