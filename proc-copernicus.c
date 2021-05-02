@@ -5,11 +5,11 @@
 // Converts Chilbolton Raw NetCDF into CF-compliant Processed format.
 // Applies Z calibration if specified.
 //
-// Version 1.5
+// Version 1.50
 //
-// 22-10-2004 : EGP : Adapted from proc-acrobat
-// 28-11-2006 : JCN : Include merging of coded and uncoded modes (no LDR)
-// 27-06-2007 : JCN : Noise levels adapted for data post-10/05/07
+// 20041022 : EGP : Adapted from proc-acrobat
+// 20061128 : JCN : Include merging of coded and uncoded modes (no LDR)
+// 20070627 : JCN : Noise levels adapted for data post-10/05/07
 //
 // 20080517 : OTD : introduction of LDR and ZDR parameters
 // 20080606 : JCN : adapted UNCODED_FIRST_GOOD from 32 to 37 (greater leakage from 13/03/08 inclusive)
